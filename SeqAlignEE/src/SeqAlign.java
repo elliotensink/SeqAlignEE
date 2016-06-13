@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 /************************************************************************************************** 
  * @author Elliot Ensink
  * Basic global alignment tool for two DNA sequences
@@ -5,8 +7,9 @@
 public class SeqAlign 
 {
 private int idScore, subScore, indelScore;
-private int[][] scoreMatrix;
+private Integer[][] scoreMatrix;
 private String seqA, seqB;
+private ArrayList<coordinate> path;
 	
 public SeqAlign(String A, String B, int id, int sub, int indel)
 {
@@ -15,63 +18,64 @@ public SeqAlign(String A, String B, int id, int sub, int indel)
 	indelScore = indel;//Penalty score for an insertion/deletion
 	seqA = "-"+A;//DNA sequence A
 	seqB = "-"+B;//DNA sequence B
-	scoreMatrix = new int[seqA.length()][seqB.length()];
+	scoreMatrix = new Integer[seqA.length()][seqB.length()];
+	path = new ArrayList<coordinate>();
 }
 
 private void align()
 {
-	scoreMatrix[0][0] = 0;
+	setupMatrix();
 	findPath(0,0);
 	printMatrix();
+	deconvolutePath();
 	
 }
 
 private void findPath(int i, int j)
 {
-	boolean a, b, c; 
-	a = b = c = false;
+	coordinate coord = new coordinate(i,j);
+	for(coordinate c : path)
+	{
+		if(c.equals(coord))
+		{
+			path.remove(c);
+			break;
+		}
+	}
+	path.add(coord);
 	int caseA, caseB, caseC;
 	if((j+1)<seqB.length())
 	{
-		a = true;
 		caseA = scoreMatrix[i][j] + indelScore;
-		if(caseA >= scoreMatrix[i][j+1])
+		if(scoreMatrix[i][j+1] == null || caseA >= scoreMatrix[i][j+1])
+		{
 			scoreMatrix[i][j+1] = caseA;
+			findPath(i,j+1);
+		}
 	}
 	if((i+1)<seqA.length())
 	{
-		b = true;
 		caseB = scoreMatrix[i][j] + indelScore;
-		if(caseB >= scoreMatrix[i+1][j])
+		if(scoreMatrix[i+1][j] == null || caseB >= scoreMatrix[i+1][j])
+		{
 			scoreMatrix[i+1][j] = caseB;
+			findPath(i+1,j);
+		}
 	}
-	if(a&&b)
+	if((j+1)<seqB.length()&&(i+1)<seqA.length())
 	{
-		c = true;
 		if(seqA.charAt(i) == seqB.charAt(j))
 			caseC = scoreMatrix[i][j] + idScore;
 		else
 			caseC = scoreMatrix[i][j] + subScore;
-		if(caseC >= scoreMatrix[i+1][j+1])
+		if(scoreMatrix[i+1][j+1] == null ||caseC >= scoreMatrix[i+1][j+1])
+		{
 			scoreMatrix[i+1][j+1] = caseC;
+			findPath(i+1,j+1);
+		}
 	}
-	if(a)
-		findPath(i,j+1);
-	if(c)
-		findPath(i+1,j+1);
-	if(b)
-		findPath(i+1,j);
-	else
-		return;
-	
-	
+	return;
 }
-
-//private void findPath()
-//{
-//	
-//}
-
 
 /**************************************************************************************************
  * firstRowColSetup
@@ -80,20 +84,32 @@ private void findPath(int i, int j)
  * scoreMatrix(i,0) = i*indelscore
  * scoreMatrix(0,j) = j*indelscore
  *************************************************************************************************/
-//private void firstRowColSetup()
-//{
-//	for(int i=0;i<scoreMatrix[0].length;i++)
-//			scoreMatrix[i][0] = i*indelScore;
-//	for(int j=0;j<scoreMatrix.length;j++)
-//		scoreMatrix[0][j] = j*indelScore;
-//}
-
+private void setupMatrix()
+{
+	for(int i=0;i<scoreMatrix[0].length;i++)
+	{	
+		for(int j=0;j<scoreMatrix.length;j++)
+		{
+			if(j == 0)
+				scoreMatrix[i][j] = i*indelScore;
+			else if(i == 0)
+				scoreMatrix[i][j] = j*indelScore;
+			else
+				scoreMatrix[i][j] = null;
+		}
+	}
+		
+}
+/**************************************************************************************************
+ * printMatrix
+ * 
+ * prints the matrix of scores generated during the alignment process
+ *************************************************************************************************/
 private void printMatrix()
 {
 	int i;
 	int j;
 	String spacing = "\t";
-	//firstRowColSetup();
 	System.out.print("\t\t");
 	for(j=0;j<seqB.length();j++)
 	{
@@ -119,14 +135,43 @@ private void printMatrix()
 		}
 		System.out.println();
 	}
+}
+
+private void deconvolutePath()
+{
+	for(coordinate c : path)
+	{
+		System.out.println("("+c.i+","+c.j+")");
+	}
+}
+
+private class coordinate
+{
+	public int i;
+	public int j;
+	public coordinate(int i, int j)
+	{
+		this.i = i;
+		this.j = j;
+	}
+	private boolean equals(coordinate c)
+	{
+		if(this.i == c.i && this.j == c.j)
+			return true;
+		else
+			return false;
+				
+	}
+	
 	
 }
 
 public static void main(String[] args)
 {
-	SeqAlign seq = new SeqAlign("ACGT","ACGT",1,-1,-2);
+	SeqAlign seq = new SeqAlign("ATCGT","TGGTG",1,-1,-2);
 	seq.align();
 }
 
 
 }
+
